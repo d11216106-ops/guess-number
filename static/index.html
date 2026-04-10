@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>猜數字遊戲</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e0e0e0;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 24px;
+      padding: 2.5rem 3rem;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      margin-bottom: 0.4rem;
+      background: linear-gradient(90deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: #94a3b8;
+      margin-bottom: 2rem;
+    }
+
+    /* Guess count badge */
+    .badge {
+      display: inline-block;
+      background: rgba(99, 102, 241, 0.25);
+      border: 1px solid rgba(99, 102, 241, 0.5);
+      border-radius: 999px;
+      padding: 0.3rem 1rem;
+      font-size: 0.85rem;
+      color: #a5b4fc;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Hint message */
+    .hint {
+      min-height: 3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      border-radius: 12px;
+      transition: all 0.3s;
+    }
+    .hint.too-big  { background: rgba(239,68,68,0.15); color: #f87171; }
+    .hint.too-small{ background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .hint.win      { background: rgba(34,197,94,0.15);  color: #4ade80; }
+    .hint.error    { background: rgba(245,158,11,0.15); color: #fbbf24; font-size: 1rem; }
+
+    /* Input row */
+    .input-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    input[type="number"] {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 2px solid rgba(99,102,241,0.4);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      font-size: 1.1rem;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="number"]:focus { border-color: #818cf8; }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    button {
+      padding: 0.75rem 1.4rem;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-guess {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+    }
+    .btn-guess:hover:not(:disabled) { opacity: 0.9; }
+
+    .btn-new {
+      width: 100%;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: #fff;
+      margin-top: 0.5rem;
+    }
+    .btn-new:hover { opacity: 0.9; }
+
+    /* Answer reveal */
+    .answer-box {
+      display: none;
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+      color: #86efac;
+    }
+    .answer-box.show { display: block; }
+    .answer-num {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #4ade80;
+      display: block;
+    }
+
+    /* Stats */
+    .stats {
+      margin-top: 1.5rem;
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 1rem 1.2rem;
+    }
+    .stats h2 {
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 0.75rem;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+    .stat-item {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 0.6rem 0.5rem;
+    }
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #a5b4fc;
+    }
+    .stat-label {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin-top: 0.1rem;
+    }
+
+    /* History list */
+    .history {
+      margin-top: 1rem;
+      max-height: 120px;
+      overflow-y: auto;
+      font-size: 0.8rem;
+      color: #475569;
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      background: rgba(255,255,255,0.03);
+      border-radius: 10px;
+    }
+    .history::-webkit-scrollbar { width: 4px; }
+    .history::-webkit-scrollbar-track { background: transparent; }
+    .history::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🎯 猜數字</h1>
+  <p class="subtitle">1 到 100 之間的整數，你能猜到嗎？</p>
+
+  <div class="badge" id="badge">第 <span id="guess-count">0</span> 次猜測</div>
+
+  <div class="hint" id="hint">開始猜吧！</div>
+
+  <div class="answer-box" id="answer-box">
+    答案是 <span class="answer-num" id="answer-num"></span>
+    共猜了 <strong id="final-count"></strong> 次！
+  </div>
+
+  <div class="input-row">
+    <input
+      type="number"
+      id="guess-input"
+      min="1"
+      max="100"
+      placeholder="輸入 1~100"
+      autocomplete="off"
+    />
+    <button class="btn-guess" id="btn-guess">猜！</button>
+  </div>
+
+  <button class="btn-new" id="btn-new">🔄 新的一局</button>
+
+  <!-- Statistics -->
+  <div class="stats" id="stats-panel">
+    <h2>📊 成績統計</h2>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-value" id="s-total">0</div>
+        <div class="stat-label">總局數</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="s-best">—</div>
+        <div class="stat-label">最少猜測次數</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="s-avg">—</div>
+        <div class="stat-label">平均猜測次數</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="s-rate">100%</div>
+        <div class="stat-label">成功率</div>
+      </div>
+    </div>
+    <div class="history" id="history"></div>
+  </div>
+</div>
+
+<script>
+  const hintEl       = document.getElementById("hint");
+  const guessInput   = document.getElementById("guess-input");
+  const btnGuess     = document.getElementById("btn-guess");
+  const btnNew       = document.getElementById("btn-new");
+  const guessCount   = document.getElementById("guess-count");
+  const answerBox    = document.getElementById("answer-box");
+  const answerNum    = document.getElementById("answer-num");
+  const finalCount   = document.getElementById("final-count");
+  const historyEl    = document.getElementById("history");
+
+  let gameActive = true;
+  let localHistory = []; // [{guesses, answer}]
+
+  // ---------- helpers ----------
+
+  function setHint(text, cls) {
+    hintEl.textContent = text;
+    hintEl.className = "hint " + (cls || "");
+  }
+
+  function updateStats(stats) {
+    document.getElementById("s-total").textContent = stats.total;
+    document.getElementById("s-best").textContent = stats.best ?? "—";
+    document.getElementById("s-avg").textContent = stats.average ?? "—";
+    document.getElementById("s-rate").textContent = stats.win_rate + "%";
+  }
+
+  function addHistoryRow(guesses, answer) {
+    const row = document.createElement("div");
+    row.textContent = `局 ${localHistory.length}：答案 ${answer}，猜了 ${guesses} 次`;
+    historyEl.prepend(row);
+  }
+
+  // ---------- API calls ----------
+
+  async function startNewGame() {
+    const res = await fetch("/api/new-game", { method: "POST" });
+    if (!res.ok) return;
+    gameActive = true;
+    guessInput.disabled = false;
+    btnGuess.disabled = false;
+    guessCount.textContent = "0";
+    answerBox.classList.remove("show");
+    setHint("開始猜吧！");
+    guessInput.value = "";
+    guessInput.focus();
+  }
+
+  async function sendGuess() {
+    const raw = guessInput.value.trim();
+    const num = parseInt(raw, 10);
+
+    if (!raw || isNaN(num) || num < 1 || num > 100) {
+      setHint("請輸入 1 到 100 之間的整數", "error");
+      guessInput.select();
+      return;
+    }
+
+    btnGuess.disabled = true;
+
+    let data;
+    try {
+      const res = await fetch("/api/guess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guess: num }),
+      });
+      data = await res.json();
+      if (!res.ok) {
+        setHint(data.error || "發生錯誤", "error");
+        btnGuess.disabled = false;
+        return;
+      }
+    } catch {
+      setHint("網路錯誤，請重試", "error");
+      btnGuess.disabled = false;
+      return;
+    }
+
+    guessCount.textContent = data.guesses;
+    guessInput.value = "";
+
+    if (data.won) {
+      setHint("🎉 恭喜通過！", "win");
+      answerNum.textContent = data.answer;
+      finalCount.textContent = data.guesses;
+      answerBox.classList.add("show");
+      guessInput.disabled = true;
+      gameActive = false;
+      localHistory.push({ guesses: data.guesses, answer: data.answer });
+      addHistoryRow(data.guesses, data.answer);
+      if (data.stats) updateStats(data.stats);
+    } else {
+      if (data.result === "大了") {
+        setHint("📉 大了！", "too-big");
+      } else {
+        setHint("📈 小了！", "too-small");
+      }
+      btnGuess.disabled = false;
+      guessInput.focus();
+    }
+  }
+
+  // ---------- event listeners ----------
+
+  btnGuess.addEventListener("click", sendGuess);
+  btnNew.addEventListener("click", startNewGame);
+  guessInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !btnGuess.disabled) sendGuess();
+  });
+
+  // ---------- init ----------
+
+  (async () => {
+    await startNewGame();
+    // Fetch existing stats (if any from previous session cookie)
+    try {
+      const res = await fetch("/api/stats");
+      if (res.ok) updateStats(await res.json());
+    } catch { /* ignore */ }
+  })();
+</script>
+</body>
+</html>
